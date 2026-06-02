@@ -798,59 +798,62 @@ config_after_install() {
                 echo -e "${yellow}⚠ SSL Certificate: Skipped — panel is HTTP-only. Use a reverse proxy or SSH tunnel.${plain}"
             fi
 
-    if
-            local config_webBasePath=$(gen_random_string 18)
-            echo -e "${yellow}WebBasePath is missing or too short. Generating a new one...${plain}"
-            ${xui_folder}/x-ui setting -webBasePath "${config_webBasePath}"
-            echo -e "${green}New WebBasePath: ${config_webBasePath}${plain}"
+if [ -n "${existing_webBasePath}" ] && [ "${#existing_webBasePath}" -ge 6 ]; then
+    config_webBasePath="${existing_webBasePath}"
+else
+    config_webBasePath=$(gen_random_string 18)
+    echo -e "${yellow}WebBasePath is missing or too short. Generating a new one...${plain}"
+    ${xui_folder}/x-ui setting -webBasePath "${config_webBasePath}"
+    echo -e "${green}New WebBasePath: ${config_webBasePath}${plain}"
 
-            # If the panel is already installed but no certificate is configured, prompt for SSL now
-            if [[ -z "${existing_cert}" ]]; then
-                echo ""
-                echo -e "${green}═══════════════════════════════════════════${plain}"
-                echo -e "${green}     SSL Certificate Setup (RECOMMENDED)   ${plain}"
-                echo -e "${green}═══════════════════════════════════════════${plain}"
-                echo -e "${yellow}Let's Encrypt now supports both domains and IP addresses!${plain}"
-                echo ""
-                prompt_and_setup_ssl "${existing_port}" "${config_webBasePath}" "${server_ip}"
-                echo -e "${green}Access URL:  ${SSL_SCHEME}://${SSL_HOST}:${existing_port}/${config_webBasePath}${plain}"
-            else
-                # If a cert already exists, just show the access URL
-                echo -e "${green}Access URL: https://${server_ip}:${existing_port}/${config_webBasePath}${plain}"
-            fi
-        if [[ "$existing_hasDefaultCredential" == "true" ]]; then
-            local config_username=$(gen_random_string 10)
-            local config_password=$(gen_random_string 10)
-
-            echo -e "${yellow}Default credentials detected. Security update required...${plain}"
-            ${xui_folder}/x-ui setting -username "${config_username}" -password "${config_password}"
-            echo -e "Generated new random login credentials:"
-            echo -e "###############################################"
-            echo -e "${green}Username: ${config_username}${plain}"
-            echo -e "${green}Password: ${config_password}${plain}"
-            echo -e "###############################################"
-        else
-            echo -e "${green}Username, Password, and WebBasePath are properly set.${plain}"
-        fi
-
-        # Existing install: if no cert configured, prompt user for SSL setup
-        # Properly detect empty cert by checking if cert: line exists and has content after it
-        existing_cert=$(${xui_folder}/x-ui setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
-        if [[ -z "$existing_cert" ]]; then
-            echo ""
-            echo -e "${green}═══════════════════════════════════════════${plain}"
-            echo -e "${green}     SSL Certificate Setup (RECOMMENDED)   ${plain}"
-            echo -e "${green}═══════════════════════════════════════════${plain}"
-            echo -e "${yellow}Let's Encrypt now supports both domains and IP addresses!${plain}"
-            echo ""
-            prompt_and_setup_ssl "${existing_port}" "${existing_webBasePath}" "${server_ip}"
-            echo -e "${green}Access URL:  ${SSL_SCHEME}://${SSL_HOST}:${existing_port}/${existing_webBasePath}${plain}"
-        else
-            echo -e "${green}SSL certificate already configured. No action needed.${plain}"
-        fi
+    # If the panel is already installed but no certificate is configured, prompt for SSL now
+    if [[ -z "${existing_cert}" ]]; then
+        echo ""
+        echo -e "${green}═══════════════════════════════════════════${plain}"
+        echo -e "${green}     SSL Certificate Setup (RECOMMENDED)   ${plain}"
+        echo -e "${green}═══════════════════════════════════════════${plain}"
+        echo -e "${yellow}Let's Encrypt now supports both domains and IP addresses!${plain}"
+        echo ""
+        prompt_and_setup_ssl "${existing_port}" "${config_webBasePath}" "${server_ip}"
+        echo -e "${green}Access URL:  ${SSL_SCHEME}://${SSL_HOST}:${existing_port}/${config_webBasePath}${plain}"
+    else
+        # If a cert already exists, just show the access URL
+        echo -e "${green}Access URL: https://${server_ip}:${existing_port}/${config_webBasePath}${plain}"
     fi
 fi
-    ${xui_folder}/x-ui migrate
+
+if [[ "$existing_hasDefaultCredential" == "true" ]]; then
+    config_username=$(gen_random_string 10)
+    config_password=$(gen_random_string 10)
+
+    echo -e "${yellow}Default credentials detected. Security update required...${plain}"
+    ${xui_folder}/x-ui setting -username "${config_username}" -password "${config_password}"
+    echo -e "Generated new random login credentials:"
+    echo -e "###############################################"
+    echo -e "${green}Username: ${config_username}${plain}"
+    echo -e "${green}Password: ${config_password}${plain}"
+    echo -e "###############################################"
+else
+    echo -e "${green}Username, Password, and WebBasePath are properly set.${plain}"
+fi
+
+# Existing install: if no cert configured, prompt user for SSL setup
+# Properly detect empty cert by checking if cert: line exists and has content after it
+existing_cert=$(${xui_folder}/x-ui setting -getCert true | grep 'cert:' | awk -F': ' '{print $2}' | tr -d '[:space:]')
+if [[ -z "$existing_cert" ]]; then
+    echo ""
+    echo -e "${green}═══════════════════════════════════════════${plain}"
+    echo -e "${green}     SSL Certificate Setup (RECOMMENDED)   ${plain}"
+    echo -e "${green}═══════════════════════════════════════════${plain}"
+    echo -e "${yellow}Let's Encrypt now supports both domains and IP addresses!${plain}"
+    echo ""
+    prompt_and_setup_ssl "${existing_port}" "${existing_webBasePath}" "${server_ip}"
+    echo -e "${green}Access URL:  ${SSL_SCHEME}://${SSL_HOST}:${existing_port}/${existing_webBasePath}${plain}"
+else
+    echo -e "${green}SSL certificate already configured. No action needed.${plain}"
+fi
+
+${xui_folder}/x-ui migrate
 }
 
 install_x-ui() {
