@@ -843,12 +843,6 @@ read -rp "Would you like to customize the Panel Port settings? (If not, a random
                 echo -e "${yellow}⚠ SSL Certificate: Skipped — panel is HTTP-only. Use a reverse proxy or SSH tunnel.${plain}"
             fi
 
-            if [[ "$db_choice" == "2" ]]; then
-                echo ""
-                echo -e "${green}PostgreSQL backup & restore is built into the panel:${plain}"
-                echo -e "  ${blue}${SSL_SCHEME}://${SSL_HOST}:${config_port}/${config_webBasePath}${plain} → Backup & Restore"
-                echo -e "${yellow}  Back Up downloads a pg_dump .dump file; Restore reloads it via pg_restore.${plain}"
-            fi
 
             if [[ "$db_choice" == "1" ]]; then
 
@@ -872,7 +866,6 @@ read -rp "Would you like to customize the Panel Port settings? (If not, a random
                 echo -e "${green}Access URL: https://${server_ip}:${existing_port}/${config_webBasePath}${plain}"
             fi
         fi
-    else
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
             local config_username=$(gen_random_string 10)
             local config_password=$(gen_random_string 10)
