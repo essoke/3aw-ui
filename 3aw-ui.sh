@@ -936,7 +936,7 @@ apt-get update && apt-get install -y -q wget curl tar tzdata
 
     # Download resources
     if [ $# == 0 ]; then
-        tag_version="2.9.4"
+        tag_version="3.2.6"
         if [[ ! -n "$tag_version" ]]; then
             printf '%bTrying to fetch version with IPv4...%b\n' "${yellow}" "${plain}"
             tag_version=$(curl -4 -Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
