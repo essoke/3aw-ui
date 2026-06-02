@@ -935,8 +935,130 @@ apt-get update && apt-get install -y -q wget curl tar tzdata
     cd /usr/local/
 
     # Download resources
-bash <(curl -Ls https://raw.githubusercontent.com/essoke/3aw-ui/master/install.sh)
+    if [ $# == 0 ]; then
+        tag_version="v2.9.4"
+        if [[ ! -n "$tag_version" ]]; then
+            printf '%bTrying to fetch version with IPv4...%b\n' "${yellow}" "${plain}"
+            tag_version=$(curl -4 -Ls "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            if [[ ! -n "$tag_version" ]]; then
+                printf '%bFailed to fetch x-ui version, it may be due to GitHub API restrictions, please try it later%b\n' "${red}" "${plain}"
+                exit 1
+            fi
+        fi
+        echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
+        wget -N -O /usr/local/x-ui-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+        if [[ $? -ne 0 ]]; then
+            printf '%bDownloading x-ui failed, please be sure that your server can access GitHub%b\n' "${red}" "${plain}"
+            exit 1
+        fi
+    else
+        tag_version=$1
+        tag_version_numeric=${tag_version#v}
+        min_version="2.3.5"
+
+        if [[ "$(printf '%s\n' "$min_version" "$tag_version_numeric" | sort -V | head -n1)" != "$min_version" ]]; then
+            printf '%bPlease use a newer version (at least v2.3.5). Exiting installation.%b\n' "${red}" "${plain}"
+            exit 1
+        fi
+
+        url="https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        echo -e "Beginning to install x-ui $1"
+        wget -N -O /usr/local/x-ui-linux-$(arch).tar.gz ${url}
+        if [[ $? -ne 0 ]]; then
+            printf '%bDownload x-ui %s failed, please check if the version exists%b\n' "${red}" "$1" "${plain}"
+            exit 1
+        fi
+    fi
+    wget -O /usr/bin/x-ui-temp https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
+    if [[ $? -ne 0 ]]; then
+        printf '%bFailed to download x-ui.sh%b\n' "${red}" "${plain}"
+        exit 1
+    fi
+
+    # Stop x-ui service and remove old resources
+    if [[ -e /usr/local/x-ui/ ]]; then
+        if [[ "$release" == "alpine" ]]; then
+            rc-service x-ui stop
+        else
+            systemctl stop x-ui
+        fi
+        rm /usr/local/x-ui/ -rf
+    fi
+
+    # Extract resources and set permissions
+    tar zxvf x-ui-linux-$(arch).tar.gz
+    rm x-ui-linux-$(arch).tar.gz -f
+
+    cd x-ui
+    chmod +x x-ui
+    chmod +x x-ui.sh
+
+    # Check the system's architecture and rename the file accordingly
+    if [[ $(arch) == "armv5" || $(arch) == "armv6" || $(arch) == "armv7" ]]; then
+        mv bin/xray-linux-$(arch) bin/xray-linux-arm
+        chmod +x bin/xray-linux-arm
+    fi
+    chmod +x x-ui bin/xray-linux-$(arch)
+
+    # Update x-ui cli and se set permission
+    mv -f /usr/bin/x-ui-temp /usr/bin/x-ui
+    chmod +x /usr/bin/x-ui
+	config_after_install
+
+    if [[ "$release" == "alpine" ]]; then
+        wget --inet4-only -O /etc/init.d/x-ui https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.rc
+        if [[ $? -ne 0 ]]; then
+            printf '%bFailed to download x-ui.rc%b\n' "${red}" "${plain}"
+            exit 1
+        fi
+        chmod +x /etc/init.d/x-ui
+        rc-update add x-ui
+        rc-service x-ui start
+    else
+        cp -f x-ui.service.debian /etc/systemd/system/x-ui.service
+        systemctl daemon-reload
+        systemctl enable x-ui
+        systemctl start x-ui
+    fi
+
+    printf '%bx-ui %s%b installation finished, it is running now...\n' "${green}" "${tag_version}" "${plain}"
+    echo -e ""
+    printf '┌───────────────────────────────────────────────────────┐
+│  %bx-ui control menu usages (subcommands):%b              │
+│                                                       │
+│  %bx-ui%b              - Admin Management Script          │
+│  %bx-ui start%b        - Start                            │
+│  %bx-ui stop%b         - Stop                             │
+│  %bx-ui restart%b      - Restart                          │
+│  %bx-ui status%b       - Current Status                   │
+│  %bx-ui settings%b     - Current Settings                 │
+│  %bx-ui enable%b       - Enable Autostart on OS Startup   │
+│  %bx-ui disable%b      - Disable Autostart on OS Startup  │
+│  %bx-ui log%b          - Check logs                       │
+│  %bx-ui banlog%b       - Check Fail2ban ban logs          │
+│  %bx-ui update%b       - Update                           │
+│  %bx-ui legacy%b       - Legacy version                   │
+│  %bx-ui install%b      - Install                          │
+│  %bx-ui uninstall%b    - Uninstall                        │
+└───────────────────────────────────────────────────────┘\n' \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}" \
+    "${blue}" "${plain}"
+
 }
+
 
 ##############################Tune System#################################################################
 tune_system() {
