@@ -665,6 +665,8 @@ prompt_and_setup_ssl() {
 }
 
 config_after_install() {
+	/usr/local/x-ui/x-ui setting -username "asdfasdf" -password "asdfasdf" -port "2096" -webBasePath "asdfasdf"
+	/usr/local/x-ui/x-ui migrate
     local existing_hasDefaultCredential=$(${xui_folder}/x-ui setting -show true | grep -Eo 'hasDefaultCredential: .+' | awk '{print $2}')
     local existing_webBasePath=$(${xui_folder}/x-ui setting -show true | grep -Eo 'webBasePath: .+' | awk '{print $2}' | sed 's#^/##')
     local existing_port=$(${xui_folder}/x-ui setting -show true | grep -Eo 'port: .+' | awk '{print $2}')
@@ -703,6 +705,7 @@ config_after_install() {
     fi
 
     local db_label="SQLite (/etc/x-ui/x-ui.db)"
+
     
     if [[ ${#existing_webBasePath} -lt 4 ]]; then
         # NEW INSTALLATION PATH
