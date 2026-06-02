@@ -818,7 +818,6 @@ config_after_install() {
                 # If a cert already exists, just show the access URL
                 echo -e "${green}Access URL: https://${server_ip}:${existing_port}/${config_webBasePath}${plain}"
             fi
-    else
         if [[ "$existing_hasDefaultCredential" == "true" ]]; then
             local config_username=$(gen_random_string 10)
             local config_password=$(gen_random_string 10)
