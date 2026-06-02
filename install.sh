@@ -854,7 +854,6 @@ else
 fi
 
 ${xui_folder}/x-ui migrate
-}
 
 install_x-ui() {
     cd ${xui_folder%/x-ui}/
