@@ -850,7 +850,7 @@ config_after_install() {
             echo -e "${green}SSL certificate already configured. No action needed.${plain}"
         fi
     fi
-
+fi
     ${xui_folder}/x-ui migrate
 }
 
