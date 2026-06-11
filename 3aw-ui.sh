@@ -981,7 +981,7 @@ show_details() {
 ##############################Main########################################################################
 main() {
 	# 0. Check
-	check_and_install_packages()
+	check_and_install_packages
 	
 	# 1. Parse arguments BEFORE any destructive action
 	parse_args "$@"
