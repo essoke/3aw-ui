@@ -213,7 +213,7 @@ clean_previous_install() {
 install_packages() {
 	if [[ "${INSTALL}" == *"y"* ]]; then
 		"$PKG_MGR" -y update
-		"$PKG_MGR" -y install curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl
+		"$PKG_MGR" -y install curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev
 		systemctl daemon-reload && systemctl enable --now nginx
 	fi
 	systemctl stop nginx
@@ -927,6 +927,10 @@ show_details() {
 
 ##############################Main########################################################################
 main() {
+
+	# 8. Install packages & disable UFW initially
+	ufw disable 2>/dev/null
+	install_packages
 	
 	# 1. Parse arguments BEFORE any destructive action
 	parse_args "$@"
@@ -994,10 +998,6 @@ main() {
 	xhttp_path=$(gen_random_string 10)
 	config_username=$(gen_random_string 10)
 	config_password=$(gen_random_string 10)
-
-	# 8. Install packages & disable UFW initially
-	ufw disable 2>/dev/null
-	install_packages
 
 	# 9. Auto-domain DNS verification
 	if [[ "${AUTODOMAIN}" == *"y"* ]]; then
