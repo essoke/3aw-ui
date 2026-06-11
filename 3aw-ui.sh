@@ -16,6 +16,59 @@ yellow='\033[0;33m'
 blue='\033[0;34m'
 plain='\033[0m'
 
+
+
+
+########################Chech Packages###############################################################
+check_and_install_packages() {
+    echo -e "\n\033[1;34m[*] Проверка и установка необходимых пакетов...\033[0m"
+    local REQUIRED_PKGS=(
+        curl
+        wget
+        nginx
+        certbot
+        sqlite3
+        ufw
+        jq
+        cron
+        tar
+        unzip
+        openssl
+    )
+
+    local PKGS_TO_INSTALL=()
+    for pkg in "${REQUIRED_PKGS[@]}"; do
+        if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+            PKGS_TO_INSTALL+=("$pkg")
+        fi
+    done
+    if [ ${#PKGS_TO_INSTALL[@]} -eq 0 ]; then
+        echo -e "\033[1;32m[+] Все необходимые пакеты уже установлены.\033[0m"
+    else
+        echo -e "\033[1;33m[!] Отсутствуют пакеты: ${PKGS_TO_INSTALL[*]}. Начинаем установку...\033[0m"
+        apt-get update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get install -yqq "${PKGS_TO_INSTALL[@]}"
+        
+        if [ $? -eq 0 ]; then
+            echo -e "\033[1;32m[+] Пакеты успешно установлены.\033[0m"
+        else
+            echo -e "\033[1;31m[-] Ошибка при установке пакетов! Проверьте репозитории или подключение к интернету.\033[0m"
+            exit 1
+        fi
+    fi
+    systemctl enable nginx cron ufw >/dev/null 2>&1
+}
+
+
+
+
+
+
+
+
+
+
+
 ##############################Message Helpers#############################################################
 msg_ok()  { printf '\e[1;42m %s \e[0m\n' "$1"; }
 msg_err() { printf '\e[1;41m %s \e[0m\n' "$1"; }
@@ -79,45 +132,6 @@ check_cpu() {
 		return 1
 	fi
 	return 0
-}
-
-check_and_install_packages() {
-    echo -e "\n\033[1;34m[*] Проверка и установка необходимых пакетов...\033[0m"
-    local REQUIRED_PKGS=(
-        curl
-        wget
-        nginx
-        certbot
-        sqlite3
-        ufw
-        jq
-        cron
-        tar
-        unzip
-        openssl
-    )
-
-    local PKGS_TO_INSTALL=()
-    for pkg in "${REQUIRED_PKGS[@]}"; do
-        if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-            PKGS_TO_INSTALL+=("$pkg")
-        fi
-    done
-    if [ ${#PKGS_TO_INSTALL[@]} -eq 0 ]; then
-        echo -e "\033[1;32m[+] Все необходимые пакеты уже установлены.\033[0m"
-    else
-        echo -e "\033[1;33m[!] Отсутствуют пакеты: ${PKGS_TO_INSTALL[*]}. Начинаем установку...\033[0m"
-        apt-get update -qq
-        DEBIAN_FRONTEND=noninteractive apt-get install -yqq "${PKGS_TO_INSTALL[@]}"
-        
-        if [ $? -eq 0 ]; then
-            echo -e "\033[1;32m[+] Пакеты успешно установлены.\033[0m"
-        else
-            echo -e "\033[1;31m[-] Ошибка при установке пакетов! Проверьте репозитории или подключение к интернету.\033[0m"
-            exit 1
-        fi
-    fi
-    systemctl enable nginx cron ufw >/dev/null 2>&1
 }
 
 preflight_checks() {
