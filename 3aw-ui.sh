@@ -872,7 +872,7 @@ install_sub2singbox() {
 ##############################Install Fake Site###########################################################
 install_fake_site() {
     rm -rf /var/www/html/*
-    bash <(wget -qO- https://raw.githubusercontent.com/mozaroc/x-ui-pro/refs/heads/master/randomfakehtml.sh)
+    bash <(wget -qO- https://raw.githubusercontent.com/essoke/panel-pro/refs/heads/master/randomfakehtml.sh)
     if [[ ! -f /var/www/html/index.html ]]; then
         SUBDIR=$(find /var/www/html/ -mindepth 1 -maxdepth 1 -type d | head -n 1)
         if [[ -n "$SUBDIR" && -f "$SUBDIR/index.html" ]]; then
