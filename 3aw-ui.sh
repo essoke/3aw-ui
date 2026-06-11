@@ -81,6 +81,45 @@ check_cpu() {
 	return 0
 }
 
+check_and_install_packages() {
+    echo -e "\n\033[1;34m[*] Проверка и установка необходимых пакетов...\033[0m"
+    local REQUIRED_PKGS=(
+        curl
+        wget
+        nginx
+        certbot
+        sqlite3
+        ufw
+        jq
+        cron
+        tar
+        unzip
+        openssl
+    )
+
+    local PKGS_TO_INSTALL=()
+    for pkg in "${REQUIRED_PKGS[@]}"; do
+        if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+            PKGS_TO_INSTALL+=("$pkg")
+        fi
+    done
+    if [ ${#PKGS_TO_INSTALL[@]} -eq 0 ]; then
+        echo -e "\033[1;32m[+] Все необходимые пакеты уже установлены.\033[0m"
+    else
+        echo -e "\033[1;33m[!] Отсутствуют пакеты: ${PKGS_TO_INSTALL[*]}. Начинаем установку...\033[0m"
+        apt-get update -qq
+        DEBIAN_FRONTEND=noninteractive apt-get install -yqq "${PKGS_TO_INSTALL[@]}"
+        
+        if [ $? -eq 0 ]; then
+            echo -e "\033[1;32m[+] Пакеты успешно установлены.\033[0m"
+        else
+            echo -e "\033[1;31m[-] Ошибка при установке пакетов! Проверьте репозитории или подключение к интернету.\033[0m"
+            exit 1
+        fi
+    fi
+    systemctl enable nginx cron ufw >/dev/null 2>&1
+}
+
 preflight_checks() {
 	local fail=0
 	check_os  || fail=1
@@ -770,149 +809,6 @@ if [[ -f "$XUIDB" ]]; then
   "metadataOnly": false,
   "routeOnly": false
 }'
-	     );
-      INSERT INTO "inbounds" ("user_id","up","down","total","remark","enable","expiry_time","listen","port","protocol","settings","stream_settings","tag","sniffing") VALUES (
-             '1',
-	     '0',
-             '0',
-	     '0',
-             '${emoji_flag} xhttp',
-	     '1',
-             '0',
-	     '/dev/shm/uds2023.sock,0666',
-             '0',
-	     'vless',
-             '{
-  "clients": [
-    {
-      "id": "${client_id3}",
-      "flow": "",
-      "email": "firstX",
-      "limitIp": 0,
-      "totalGB": 0,
-      "expiryTime": 0,
-      "enable": true,
-      "tgId": "",
-      "subId": "first",
-      "reset": 0,
-	  "created_at": 1756726925000,
-      "updated_at": 1756726925000
-    }
-  ],
-  "decryption": "none",
-  "fallbacks": []
-}','{
-  "network": "xhttp",
-  "security": "none",
-  "externalProxy": [
-    {
-      "forceTls": "tls",
-      "dest": "${domain}",
-      "port": 443,
-      "remark": ""
-    }
-  ],
-  "xhttpSettings": {
-    "path": "/${xhttp_path}",
-    "host": "",
-    "headers": {},
-    "scMaxBufferedPosts": 30,
-    "scMaxEachPostBytes": "1000000",
-    "noSSEHeader": false,
-    "xPaddingBytes": "100-1000",
-    "mode": "packet-up"
-  },
-  "sockopt": {
-    "acceptProxyProtocol": false,
-    "tcpFastOpen": true,
-    "mark": 0,
-    "tproxy": "off",
-    "tcpMptcp": true,
-    "tcpNoDelay": true,
-    "domainStrategy": "UseIP",
-    "tcpMaxSeg": 1440,
-    "dialerProxy": "",
-    "tcpKeepAliveInterval": 0,
-    "tcpKeepAliveIdle": 300,
-    "tcpUserTimeout": 10000,
-    "tcpcongestion": "bbr",
-    "V6Only": false,
-    "tcpWindowClamp": 600,
-    "interface": ""
-  }
-}',
-             'inbound-/dev/shm/uds2023.sock,0666:0|',
-	     '{
-  "enabled": true,
-  "destOverride": [
-    "http",
-    "tls",
-    "quic",
-    "fakedns"
-  ],
-  "metadataOnly": false,
-  "routeOnly": false
-}'
-	     );
-	INSERT INTO "inbounds" ("user_id","up","down","total","remark","enable","expiry_time","listen","port","protocol","settings","stream_settings","tag","sniffing") VALUES (
-	     '1',
-	     '0',
-         '0',
-	     '0',
-         '${emoji_flag} trojan-grpc',
-	     '1',
-         '0',
-		 '',
-		 '${trojan_port}',
-		 'trojan',
-		 '{
-  "clients": [
-    {
-      "comment": "",
-      "created_at": 1756726925000,
-      "email": "firstT",
-      "enable": true,
-      "expiryTime": 0,
-      "limitIp": 0,
-      "password": "${trojan_pass}",
-      "reset": 0,
-      "subId": "first",
-      "tgId": 0,
-      "totalGB": 0,
-      "updated_at": 1756726925000
-    }
-  ],
-  "fallbacks": []
-}',
-'{
-  "network": "grpc",
-  "security": "none",
-  "externalProxy": [
-    {
-      "forceTls": "tls",
-      "dest": "${domain}",
-      "port": 443,
-      "remark": ""
-    }
-  ],
-  "grpcSettings": {
-    "serviceName": "/${trojan_port}/${trojan_path}",
-    "authority": "${domain}",
-    "multiMode": false
-  }
-}',
-'inbound-${trojan_port}',
-'{
-  "enabled": false,
-  "destOverride": [
-    "http",
-    "tls",
-    "quic",
-    "fakedns"
-  ],
-  "metadataOnly": false,
-  "routeOnly": false
-}'
 	);
 EOF
 /usr/local/x-ui/x-ui setting -username "${config_username}" -password "${config_password}" -port "${panel_port}" -webBasePath "${panel_path}"
@@ -975,7 +871,19 @@ install_sub2singbox() {
 
 ##############################Install Fake Site###########################################################
 install_fake_site() {
-	bash <(wget -qO- https://raw.githubusercontent.com/mozaroc/x-ui-pro/refs/heads/master/randomfakehtml.sh)
+    rm -rf /var/www/html/*
+    bash <(wget -qO- https://raw.githubusercontent.com/mozaroc/x-ui-pro/refs/heads/master/randomfakehtml.sh)
+    if [[ ! -f /var/www/html/index.html ]]; then
+        SUBDIR=$(find /var/www/html/ -mindepth 1 -maxdepth 1 -type d | head -n 1)
+        if [[ -n "$SUBDIR" && -f "$SUBDIR/index.html" ]]; then
+            mv "$SUBDIR"/* /var/www/html/
+            rm -rf "$SUBDIR"
+        else
+            echo "<!DOCTYPE html><html><head><title>Welcome</title></head><body><h1>Service is running...</h1></body></html>" > /var/www/html/index.html
+        fi
+    fi
+    chown -R www-data:www-data /var/www/html/
+    chmod -R 755 /var/www/html/
 }
 
 ##############################Install Web Sub Page########################################################
@@ -1018,10 +926,13 @@ setup_crontab() {
 ##############################Setup UFW###################################################################
 setup_ufw() {
 	ufw disable
+	ufw --force reset
+    ufw default deny incoming
+    ufw default allow outgoing
 	ufw allow 22/tcp
 	ufw allow 80/tcp
 	ufw allow 443/tcp
-	ufw allow ${tgS5_port}/tcp
+	ufw allow ${panel_port}/tcp
 	ufw --force enable
 }
 
@@ -1035,7 +946,7 @@ show_details() {
 		msg_inf "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
 		certbot certificates | grep -i 'Path:\|Domains:\|Expiry Date:'
 		msg_inf "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-		msg_inf "X-UI Secure Panel: https://${domain}/${panel_path}/"
+		msg_inf "X-UI Secure Panel: https://${domain}:${panel_port}/${panel_path}/"
 		printf '\n'
 		printf 'Username:  %s\n\n' "${config_username}"
 		printf 'Password:  %s\n\n' "${config_password}"
@@ -1117,12 +1028,7 @@ main() {
 	json_path=$(gen_random_string 10)
 	panel_path=$(gen_random_string 10)
 	ws_port=$(make_port)
-	trojan_port=$(make_port)
-	tgS5_port=$(make_port)
-	tgS5_username=$(gen_random_string 10)
-	tgS5_password=$(gen_random_string 10)
 	ws_path=$(gen_random_string 10)
-	trojan_path=$(gen_random_string 10)
 	xhttp_path=$(gen_random_string 10)
 	config_username=$(gen_random_string 10)
 	config_password=$(gen_random_string 10)
