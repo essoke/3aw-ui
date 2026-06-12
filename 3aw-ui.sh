@@ -209,17 +209,6 @@ clean_previous_install() {
 	rm -rf /etc/nginx/stream-enabled/*
 }
 
-##############################Install Packages############################################################
-install_packages() {
-	if [[ "${INSTALL}" == *"y"* ]]; then
-		"$PKG_MGR" -y update
-		"$PKG_MGR" -y install curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev
-		systemctl daemon-reload && systemctl enable --now nginx
-	fi
-	systemctl stop nginx
-	fuser -k 80/tcp 80/udp 443/tcp 443/udp 2>/dev/null
-}
-
 ##############################SSL Helper##################################################################
 obtain_ssl() {
 	local cert_domain="$1"
@@ -927,10 +916,29 @@ show_details() {
 
 ##############################Main########################################################################
 main() {
-
+echo "Ожидаем и проверяем критические зависимости..."
+    # Принудительно обновляем списки и ставим всё необходимое
+    if [[ "$PKG_MGR" == "apt" ]]; then
+        apt-get update -y
+        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
+        for pkg in $REQUIRED_PKGS; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+                echo "Устанавливаем $pkg..."
+                apt-get install -y "$pkg"
+            fi
+        done
+    elif [[ "$PKG_MGR" == "yum" ]]; then
+        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
+        for pkg in $REQUIRED_PKGS; do
+            if ! rpm -qa | grep -qw "$pkg"; then
+                echo "Устанавливаем $pkg..."
+                yum install -y "$pkg"
+            fi
+        done
+    fi
+    echo "Зависимости проверены!"
 	# 8. Install packages & disable UFW initially
 	ufw disable 2>/dev/null
-	install_packages
 	
 	# 1. Parse arguments BEFORE any destructive action
 	parse_args "$@"
@@ -1054,7 +1062,13 @@ main() {
 	# 20. Setup UFW
 	setup_ufw
 
+    systemctl stop nginx
+	x-ui update -y
+	systemctl start nginx
+	systemctl start x-ui
+
 	# 21. Show details
+	
 	show_details
 }
 
