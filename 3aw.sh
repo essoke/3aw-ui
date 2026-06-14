@@ -1,5 +1,5 @@
 #!/bin/bash
-#################### x-ui-pro v2.4.3 @ github.com/GFW4Fun ##############################################
+####################                x-ui-pro              ##############################################
 set -o pipefail
 trap '(( $? )) && printf "[ERROR] Script exited with code %d\n" "$?" >&2' EXIT
 
@@ -24,24 +24,13 @@ die()     { msg_err "$1"; exit "${2:-1}"; }
 warn()    { printf '\e[1;33mWARN: %s\e[0m\n' "$1" >&2; }
 need_cmd() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"; }
 
-##############################Root Check##################################################################
+##############################Check dependencies###########################################################
 ensure_root() {
 	if [[ $EUID -ne 0 ]]; then
 		msg_inf "Not root, re-executing with sudo..."
 		exec sudo -E bash "$0" "$@"
 	fi
 }
-ensure_root "$@"
-
-##############################Banner######################################################################
-show_banner() {
-echo;msg_inf '           ___    _   _   _  '	;
-msg_inf		 ' \/ __ | |  | __ |_) |_) / \ '	;
-msg_inf		 ' /\    |_| _|_   |   | \ \_/ '	; echo
-}
-show_banner
-
-##############################OS & CPU Preflight Check####################################################
 check_os() {
 	if [[ ! -f /etc/os-release ]]; then
 		msg_err "Cannot detect OS: /etc/os-release not found."
@@ -91,9 +80,39 @@ preflight_checks() {
 	# Initialize release for install_panel() Alpine checks
 	release="$OS_ID"
 }
-preflight_checks
 
-##############################IP Detection################################################################
+package_install() {
+	echo "Checking critical dependencies..."
+    # Принудительно обновляем списки и ставим всё необходимое
+    if [[ "$PKG_MGR" == "apt" ]]; then
+        apt-get update -y
+        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
+        for pkg in $REQUIRED_PKGS; do
+            if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+                echo "Installing $pkg..."
+                apt-get install -y "$pkg"
+            fi
+        done
+    elif [[ "$PKG_MGR" == "yum" ]]; then
+        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
+        for pkg in $REQUIRED_PKGS; do
+            if ! rpm -qa | grep -qw "$pkg"; then
+                echo "Installing $pkg..."
+                yum install -y "$pkg"
+            fi
+        done
+    fi
+    echo "Dependencies checked!"
+}
+
+ensure_root "$@"
+preflight_checks
+package_install
+
+
+
+
+#############################IP Detection################################################################
 detect_ips() {
 	IP4=$(ip route get 8.8.8.8 2>&1 | grep -Po -- 'src \K\S*')
 	[[ "$IP4" =~ $IP4_REGEX ]] || IP4=$(curl -s ipv4.icanhazip.com | tr -d '[:space:]')
@@ -784,8 +803,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/essoke/3aw-ui/master/install.s
 
 }
 
-
-##############################Tune System#################################################################
+#############################Tune System#################################################################
 tune_system() {
 	apt-get install -yqq --no-install-recommends ca-certificates
 	sysctl_ensure "net.core.default_qdisc" "fq"
@@ -901,9 +919,6 @@ show_details() {
 		printf 'Username:  %s\n\n' "${config_username}"
 		printf 'Password:  %s\n\n' "${config_password}"
 		msg_inf "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-		msg_inf "Web Sub Page your first client: https://${domain}/${web_path}?name=first"
-		printf '\n'
-		msg_inf "Your local sub2sing-box instance: https://${domain}/$sub2singbox_path/"
 		printf '\n'
 		printf '\n'
 		msg_inf "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
@@ -916,29 +931,6 @@ show_details() {
 
 ##############################Main########################################################################
 main() {
-echo "Ожидаем и проверяем критические зависимости..."
-    # Принудительно обновляем списки и ставим всё необходимое
-    if [[ "$PKG_MGR" == "apt" ]]; then
-        apt-get update -y
-        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
-        for pkg in $REQUIRED_PKGS; do
-            if ! dpkg -s "$pkg" >/dev/null 2>&1; then
-                echo "Устанавливаем $pkg..."
-                apt-get install -y "$pkg"
-            fi
-        done
-    elif [[ "$PKG_MGR" == "yum" ]]; then
-        local REQUIRED_PKGS="curl wget jq bash sudo nginx nginx-full certbot python3-certbot-nginx sqlite3 ufw jq cron tar unzip openssl libnginx-mod-stream-geoip2 libmaxminddb-dev"
-        for pkg in $REQUIRED_PKGS; do
-            if ! rpm -qa | grep -qw "$pkg"; then
-                echo "Устанавливаем $pkg..."
-                yum install -y "$pkg"
-            fi
-        done
-    fi
-    echo "Зависимости проверены!"
-	# 8. Install packages & disable UFW initially
-	ufw disable 2>/dev/null
 	
 	# 1. Parse arguments BEFORE any destructive action
 	parse_args "$@"
@@ -964,7 +956,7 @@ echo "Ожидаем и проверяем критические зависим
 		if [[ -n "$domain" ]]; then
 			break
 		fi
-		printf "Enter available subdomain (sub.domain.tld): " && read domain
+		printf "Enter available subdomain for PANEL (sub.domain.tld): " && read domain
 	done
 
 	domain=$(echo "$domain" 2>&1 | tr -d '[:space:]')
@@ -1003,7 +995,6 @@ echo "Ожидаем и проверяем критические зависим
 	panel_path=$(gen_random_string 10)
 	ws_port=$(make_port)
 	ws_path=$(gen_random_string 10)
-	xhttp_path=$(gen_random_string 10)
 	config_username=$(gen_random_string 10)
 	config_password=$(gen_random_string 10)
 
@@ -1062,15 +1053,9 @@ echo "Ожидаем и проверяем критические зависим
 	# 20. Setup UFW
 	setup_ufw
 
-    systemctl stop nginx
-	x-ui update -y
-	systemctl start nginx
-	systemctl start x-ui
-
 	# 21. Show details
 	
 	show_details
 }
 
 main "$@"
-#################################################N-joy##################################################
