@@ -1062,11 +1062,6 @@ echo "Ожидаем и проверяем критические зависим
 	# 20. Setup UFW
 	setup_ufw
 
-    systemctl stop nginx
-	x-ui update -y
-	systemctl start nginx
-	systemctl start x-ui
-
 	# 21. Show details
 	
 	show_details
