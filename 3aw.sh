@@ -108,7 +108,7 @@ package_install() {
 ensure_root "$@"
 preflight_checks
 package_install
-
+systemctl stop nginx 
 
 
 
