@@ -481,7 +481,7 @@ EOF
 			break;
 		}
 	}
-	location / { try_files \$uri \$uri/ =404; }
+ }
 EOF
 
 	cat > "/etc/nginx/sites-available/${reality_domain}" << EOF
